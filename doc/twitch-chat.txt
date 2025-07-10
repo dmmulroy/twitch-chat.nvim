@@ -1,0 +1,637 @@
+*twitch-chat.txt*	Twitch chat integration for Neovim
+
+Author: TwitchChat Contributors
+License: MIT
+
+==============================================================================
+CONTENTS                                                    *twitch-chat-contents*
+
+1. Introduction..........................................|twitch-chat-intro|
+2. Installation..........................................|twitch-chat-install|
+3. Configuration.........................................|twitch-chat-config|
+4. Commands..............................................|twitch-chat-commands|
+5. Functions.............................................|twitch-chat-functions|
+6. Mappings..............................................|twitch-chat-mappings|
+7. Events................................................|twitch-chat-events|
+8. Integrations..........................................|twitch-chat-integrations|
+9. Health Checks.........................................|twitch-chat-health|
+10. Troubleshooting......................................|twitch-chat-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                              *twitch-chat-intro*
+
+TwitchChat.nvim is a comprehensive Neovim plugin that enables real-time Twitch
+chat integration directly within your editor. It provides a seamless way to
+connect to Twitch IRC, authenticate with OAuth2, manage multiple channels, and
+interact with chat messages.
+
+Features:
+- OAuth2 authentication with Twitch
+- Real-time chat display in dedicated buffers
+- Multiple channel support
+- Message filtering and moderation
+- Emote support
+- Rate limiting and connection management
+- Integration with popular Neovim plugins
+- Comprehensive health checking
+
+==============================================================================
+2. INSTALLATION                                           *twitch-chat-install*
+
+2.1 Requirements                                    *twitch-chat-requirements*
+
+- Neovim >= 0.8.0
+- plenary.nvim (required)
+- curl (for OAuth authentication)
+
+2.2 Plugin Managers                                   *twitch-chat-managers*
+
+Using lazy.nvim: >
+    {
+        'user/twitch-chat.nvim',
+        dependencies = { 'nvim-lua/plenary.nvim' },
+        config = function()
+            require('twitch-chat').setup({
+                auth = {
+                    client_id = 'your_twitch_client_id',
+                },
+            })
+        end,
+    }
+<
+
+Using packer.nvim: >
+    use {
+        'user/twitch-chat.nvim',
+        requires = { 'nvim-lua/plenary.nvim' },
+        config = function()
+            require('twitch-chat').setup({
+                auth = {
+                    client_id = 'your_twitch_client_id',
+                },
+            })
+        end,
+    }
+<
+
+Using vim-plug: >
+    Plug 'nvim-lua/plenary.nvim'
+    Plug 'user/twitch-chat.nvim'
+<
+
+Then in your init.lua: >
+    require('twitch-chat').setup({
+        auth = {
+            client_id = 'your_twitch_client_id',
+        },
+    })
+<
+
+2.3 Twitch Application Setup                          *twitch-chat-app-setup*
+
+Before using the plugin, you need to create a Twitch application:
+
+1. Go to https://dev.twitch.tv/console/apps
+2. Click "Register Your Application"
+3. Fill in the application details:
+   - Name: Your application name
+   - OAuth Redirect URLs: http://localhost:3000/callback
+   - Category: Application Integration
+4. Copy the Client ID and use it in your configuration
+
+==============================================================================
+3. CONFIGURATION                                            *twitch-chat-config*
+
+3.1 Basic Setup                                       *twitch-chat-basic-setup*
+
+Minimal configuration: >
+    require('twitch-chat').setup({
+        auth = {
+            client_id = 'your_twitch_client_id',
+        },
+    })
+<
+
+3.2 Full Configuration                                 *twitch-chat-full-config*
+
+Complete configuration with all options: >
+    require('twitch-chat').setup({
+        enabled = true,
+        debug = false,
+        
+        auth = {
+            client_id = 'your_twitch_client_id',
+            client_secret = 'your_client_secret', -- Optional
+            redirect_uri = 'http://localhost:3000/callback',
+            scopes = { 'chat:read', 'chat:edit' },
+            token_file = vim.fn.stdpath('cache') .. '/twitch-chat/token.json',
+            auto_refresh = true,
+        },
+        
+        ui = {
+            width = 80,
+            height = 20,
+            position = 'center', -- 'center', 'left', 'right', 'top', 'bottom'
+            border = 'rounded',  -- 'rounded', 'single', 'double', 'shadow', 'none'
+            highlights = {
+                username = 'Identifier',
+                timestamp = 'Comment',
+                message = 'Normal',
+                mention = 'WarningMsg',
+                badge = 'Special',
+                emote = 'Constant',
+                url = 'Underlined',
+                command = 'Keyword',
+            },
+            timestamp_format = '[%H:%M:%S]',
+            show_badges = true,
+            show_emotes = true,
+            max_messages = 1000,
+            auto_scroll = true,
+            word_wrap = true,
+        },
+        
+        keymaps = {
+            send = '<CR>',
+            close = 'q',
+            scroll_up = '<C-u>',
+            scroll_down = '<C-d>',
+            switch_channel = '<C-t>',
+            toggle_timestamps = '<C-s>',
+            clear_chat = '<C-l>',
+            copy_message = 'y',
+            reply = 'r',
+            mention = 'm',
+        },
+        
+        integrations = {
+            telescope = true,
+            cmp = true,
+            which_key = true,
+            notify = true,
+            lualine = true,
+        },
+        
+        chat = {
+            default_channel = '',
+            reconnect_delay = 5000,
+            max_reconnect_attempts = 3,
+            message_rate_limit = 20,
+            ping_interval = 60000,
+            ping_timeout = 10000,
+        },
+        
+        filters = {
+            enable_filters = false,
+            block_patterns = {},
+            allow_patterns = {},
+            block_users = {},
+            allow_users = {},
+            filter_commands = false,
+            filter_links = false,
+        },
+    })
+<
+
+3.3 Configuration Options                             *twitch-chat-config-options*
+
+*g:twitch_chat_enabled*
+    Type: boolean, Default: true
+    Enable or disable the plugin globally.
+
+*g:twitch_chat_debug*
+    Type: boolean, Default: false
+    Enable debug logging for troubleshooting.
+
+See |twitch-chat-full-config| for all available options.
+
+==============================================================================
+4. COMMANDS                                               *twitch-chat-commands*
+
+*:TwitchChat* [channel]
+    Connect to Twitch chat. If channel is provided, connects to that channel.
+    Otherwise, uses the default channel from configuration.
+
+*:TwitchDisconnect* [channel]
+    Disconnect from Twitch chat. If channel is provided, disconnects from that
+    specific channel. Otherwise, disconnects from current channel.
+
+*:TwitchStatus*
+    Show current plugin status including connection state, channels, and
+    configuration.
+
+*:TwitchAuth*
+    Start OAuth authentication flow with Twitch.
+
+*:TwitchReauth*
+    Force re-authentication with Twitch (clears current token).
+
+*:TwitchJoin* {channel}
+    Join a specific Twitch channel.
+
+*:TwitchPart* {channel} [reason]
+    Leave a specific Twitch channel with optional reason.
+
+*:TwitchSend* {message}
+    Send a message to the current channel.
+
+*:TwitchChannels*
+    List all connected channels.
+
+*:TwitchSwitch* [channel]
+    Switch to a different channel. If channel is not provided, shows a
+    selection prompt.
+
+*:TwitchClear*
+    Clear messages in the current chat buffer.
+
+*:TwitchReload*
+    Reload the plugin configuration and reconnect.
+
+*:TwitchHealth*
+    Run health checks and display results.
+
+*:TwitchEmotes*
+    Show available emotes (requires telescope integration).
+
+*:TwitchDebug*
+    Toggle debug mode.
+
+==============================================================================
+5. FUNCTIONS                                           *twitch-chat-functions*
+
+All functions are available through require('twitch-chat').
+
+5.1 Core Functions                                     *twitch-chat-core-functions*
+
+setup({config})                                             *twitch-chat.setup()*
+    Initialize the plugin with configuration.
+    
+    Parameters:
+        {config} (table): Configuration options
+        
+    Example: >
+        require('twitch-chat').setup({
+            auth = { client_id = 'your_id' }
+        })
+<
+
+connect({channel})                                         *twitch-chat.connect()*
+    Connect to a Twitch channel.
+    
+    Parameters:
+        {channel} (string): Channel name to connect to
+        
+    Returns:
+        boolean: true if connection initiated successfully
+
+disconnect({channel})                                   *twitch-chat.disconnect()*
+    Disconnect from a Twitch channel.
+    
+    Parameters:
+        {channel} (string|nil): Channel to disconnect from, or current channel
+        
+    Returns:
+        boolean: true if disconnection successful
+
+send_message({message})                              *twitch-chat.send_message()*
+    Send a message to the current channel.
+    
+    Parameters:
+        {message} (string): Message to send
+        
+    Returns:
+        boolean: true if message sent successfully
+
+get_channels()                                        *twitch-chat.get_channels()*
+    Get list of connected channels.
+    
+    Returns:
+        table: List of channel information
+
+get_current_channel()                          *twitch-chat.get_current_channel()*
+    Get the currently active channel.
+    
+    Returns:
+        string|nil: Current channel name or nil
+
+switch_channel({channel})                          *twitch-chat.switch_channel()*
+    Switch to a different channel.
+    
+    Parameters:
+        {channel} (string): Channel name to switch to
+        
+    Returns:
+        boolean: true if switch successful
+
+5.2 Status Functions                                 *twitch-chat-status-functions*
+
+get_status()                                            *twitch-chat.get_status()*
+    Get comprehensive plugin status.
+    
+    Returns:
+        table: Status information including:
+            - enabled: boolean
+            - authenticated: boolean
+            - debug: boolean
+            - channels: table
+            - current_channel: string|nil
+            - uptime: number
+
+is_connected({channel})                              *twitch-chat.is_connected()*
+    Check if connected to a specific channel.
+    
+    Parameters:
+        {channel} (string): Channel name to check
+        
+    Returns:
+        boolean: true if connected
+
+is_initialized()                                   *twitch-chat.is_initialized()*
+    Check if plugin is initialized.
+    
+    Returns:
+        boolean: true if initialized
+
+get_version()                                        *twitch-chat.get_version()*
+    Get plugin version.
+    
+    Returns:
+        string: Version string
+
+get_uptime()                                          *twitch-chat.get_uptime()*
+    Get plugin uptime in seconds.
+    
+    Returns:
+        number: Uptime in seconds
+
+5.3 Event Functions                                   *twitch-chat-event-functions*
+
+on({event}, {callback})                                       *twitch-chat.on()*
+    Register an event listener.
+    
+    Parameters:
+        {event} (string): Event name
+        {callback} (function): Callback function
+        
+    Example: >
+        require('twitch-chat').on('message_received', function(data)
+            print('Message from ' .. data.username .. ': ' .. data.content)
+        end)
+<
+
+emit({event}, {data})                                       *twitch-chat.emit()*
+    Emit an event.
+    
+    Parameters:
+        {event} (string): Event name
+        {data} (any): Event data
+
+5.4 Utility Functions                               *twitch-chat-utility-functions*
+
+health_check()                                        *twitch-chat.health_check()*
+    Run comprehensive health checks.
+    
+    Returns:
+        table: List of health check results
+
+is_healthy()                                            *twitch-chat.is_healthy()*
+    Check if plugin is healthy.
+    
+    Returns:
+        boolean: true if healthy
+
+reload()                                                  *twitch-chat.reload()*
+    Reload the plugin.
+
+toggle_debug()                                        *twitch-chat.toggle_debug()*
+    Toggle debug mode.
+
+get_info()                                              *twitch-chat.get_info()*
+    Get plugin information.
+    
+    Returns:
+        table: Plugin metadata
+
+insert_emote({emote_name})                           *twitch-chat.insert_emote()*
+    Insert an emote at cursor position.
+    
+    Parameters:
+        {emote_name} (string): Name of emote to insert
+        
+    Returns:
+        boolean: true if successful
+
+get_emotes()                                            *twitch-chat.get_emotes()*
+    Get list of available emotes.
+    
+    Returns:
+        table: List of emote names
+
+==============================================================================
+6. MAPPINGS                                               *twitch-chat-mappings*
+
+Default mappings within chat buffers:
+
+<CR>                Send message (opens input prompt)
+q                   Close chat buffer
+<C-u>               Scroll up
+<C-d>               Scroll down
+<C-t>               Switch channel
+<C-s>               Toggle timestamps
+<C-l>               Clear chat
+y                   Copy message under cursor
+r                   Reply to message under cursor
+m                   Mention user under cursor
+
+Global mappings (if configured):
+
+<leader>tc          Connect to default channel
+<leader>td          Disconnect from current channel
+<leader>ts          Show status
+<leader>te          Insert emote
+
+==============================================================================
+6. EVENTS                                                  *twitch-chat-events*
+
+The plugin emits various events that can be listened to:
+
+*message_received*
+    Fired when a chat message is received.
+    Data: { username, content, channel, timestamp, badges, emotes, ... }
+
+*channel_joined*
+    Fired when successfully joining a channel.
+    Data: { channel, nick }
+
+*channel_left*
+    Fired when leaving a channel.
+    Data: { channel, nick, reason }
+
+*user_joined*
+    Fired when a user joins a channel.
+    Data: { channel, nick }
+
+*user_left*
+    Fired when a user leaves a channel.
+    Data: { channel, nick, reason }
+
+*connection_established*
+    Fired when IRC connection is established.
+    Data: { server, nick }
+
+*connection_lost*
+    Fired when IRC connection is lost.
+    Data: { reason, code }
+
+*authentication_success*
+    Fired when OAuth authentication succeeds.
+    Data: { token_info }
+
+*authentication_failed*
+    Fired when OAuth authentication fails.
+    Data: { error, reason }
+
+*error_occurred*
+    Fired when an error occurs.
+    Data: { error, context, severity }
+
+Example usage: >
+    require('twitch-chat').on('message_received', function(data)
+        if data.content:match('@' .. vim.fn.expand('%:t:r')) then
+            vim.notify('You were mentioned by ' .. data.username)
+        end
+    end)
+<
+
+==============================================================================
+8. INTEGRATIONS                                     *twitch-chat-integrations*
+
+8.1 Telescope Integration                           *twitch-chat-telescope*
+
+When telescope integration is enabled: >
+    :Telescope twitch_chat channels    " Browse and switch channels
+    :Telescope twitch_chat emotes      " Browse and insert emotes
+    :Telescope twitch_chat messages    " Search chat history
+<
+
+8.2 nvim-cmp Integration                                 *twitch-chat-cmp*
+
+Provides completion for:
+- Emote names
+- User names in current channel
+- Channel names
+
+8.3 which-key Integration                           *twitch-chat-which-key*
+
+Automatically registers keymaps with descriptions when which-key is available.
+
+8.4 nvim-notify Integration                           *twitch-chat-notify*
+
+Uses nvim-notify for notifications when available, otherwise falls back to
+vim.notify.
+
+8.5 lualine Integration                               *twitch-chat-lualine*
+
+Adds TwitchChat status to lualine statusline:
+- Connection status
+- Current channel
+- Message count
+
+==============================================================================
+9. HEALTH CHECKS                                          *twitch-chat-health*
+
+The plugin includes comprehensive health checks accessible via:
+- :TwitchHealth command
+- :checkhealth twitch-chat
+- require('twitch-chat').health_check()
+
+Health checks include:
+- Plugin initialization status
+- Configuration validation
+- Authentication status
+- Network connectivity
+- Required dependencies
+- Integration availability
+- Buffer state
+- Performance metrics
+
+Example output: >
+    TwitchChat Health Check Results:
+    ✓ Plugin initialized successfully
+    ✓ Configuration is valid
+    ✓ Authentication token is valid
+    ✓ Network connectivity available
+    ✓ All required dependencies found
+    ⚠ Telescope integration not available
+    ✓ Buffer management working
+    ✓ Performance within normal ranges
+<
+
+==============================================================================
+10. TROUBLESHOOTING                            *twitch-chat-troubleshooting*
+
+10.1 Common Issues                              *twitch-chat-common-issues*
+
+Q: Authentication fails with "invalid client ID"
+A: Ensure your Twitch application client ID is correct and the application
+   is properly configured with the redirect URI.
+
+Q: Connection timeouts or fails to connect
+A: Check your internet connection and firewall settings. Ensure the WebSocket
+   connection to irc-ws.chat.twitch.tv:443 is not blocked.
+
+Q: Messages not appearing in chat buffer
+A: Verify you've joined the channel with :TwitchJoin <channel> and check
+   the connection status with :TwitchStatus.
+
+Q: Plugin not loading or functions not available
+A: Ensure plenary.nvim is installed and require('twitch-chat').setup() has
+   been called.
+
+Q: High memory usage or performance issues
+A: Reduce max_messages in configuration and check for runaway event listeners.
+
+10.2 Debug Mode                                       *twitch-chat-debug-mode*
+
+Enable debug mode for verbose logging: >
+    require('twitch-chat').setup({
+        debug = true,
+    })
+<
+
+Or toggle at runtime: >
+    :TwitchDebug
+<
+
+Debug logs are written to :messages and can help identify connection issues,
+authentication problems, and configuration errors.
+
+10.3 Log Files                                         *twitch-chat-log-files*
+
+Debug information is logged to:
+- Neovim's :messages
+- Optional log file (if configured)
+
+10.4 Reset Plugin State                           *twitch-chat-reset-state*
+
+To reset the plugin completely: >
+    :TwitchDisconnect
+    :lua require('twitch-chat').reload()
+<
+
+To clear authentication: >
+    :TwitchReauth
+<
+
+10.5 Reporting Issues                             *twitch-chat-report-issues*
+
+When reporting issues, please include:
+1. :TwitchHealth output
+2. :TwitchStatus output  
+3. Debug logs (with debug = true)
+4. Minimal reproduction configuration
+5. Neovim version and platform information
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

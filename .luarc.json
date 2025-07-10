@@ -1,0 +1,60 @@
+{
+  "runtime": {
+    "version": "LuaJIT",
+    "path": [
+      "lua/?.lua",
+      "lua/?/init.lua"
+    ]
+  },
+  "diagnostics": {
+    "globals": ["vim", "describe", "it", "before_each", "after_each", "assert", "stub", "spy", "mock"],
+    "disable": [
+      "missing-fields",
+      "inject-field",
+      "undefined-field"
+    ],
+    "groupSeverity": {
+      "strong": "Warning",
+      "strict": "Warning"
+    },
+    "groupFileStatus": {
+      "missing-fields": "Opened",
+      "type-check": "Opened"
+    },
+    "workspaceFilter": [
+      "-tests/**/*.lua"
+    ]
+  },
+  "workspace": {
+    "library": [
+      "${3rd}/luv/library",
+      "${3rd}/busted/library"
+    ],
+    "checkThirdParty": false,
+    "ignoreDir": [
+      ".git",
+      "node_modules"
+    ]
+  },
+  "completion": {
+    "callSnippet": "Both"
+  },
+  "type": {
+    "castNumberToInteger": true
+  },
+  "format": {
+    "enable": false
+  },
+  "telemetry": {
+    "enable": false
+  },
+  "hint": {
+    "enable": true,
+    "arrayIndex": "Auto",
+    "setType": false,
+    "paramType": true,
+    "paramName": "All",
+    "semicolon": "All",
+    "await": true
+  }
+}
